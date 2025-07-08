@@ -3,7 +3,7 @@ import { defineConfig } from 'drizzle-kit';
 
 dotenv.config({path : ".env"})
 
-if(process.env.DATABASE_URL){
+if(!process.env.DATABASE_URL){
     throw new Error("Database url is not set in .env")
 }
 export default defineConfig({
@@ -14,7 +14,7 @@ export default defineConfig({
     url: process.env.DATABASE_URL!,
   },
   migrations: {
-    table: "__drizzel_migration",
+    table: "__drizzle_migration",
     schema: "public",
   },
   verbose: true,
