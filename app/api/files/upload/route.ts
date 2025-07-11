@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
             useUniqueFileName: false
         })
 
-        const fileData = {
+        const fileData = {  // ?
             id: uuidv4(),
             name: uploadResponse.name.trim(),
             path: uploadResponse.filePath,
