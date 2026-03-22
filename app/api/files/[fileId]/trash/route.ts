@@ -1,88 +1,75 @@
 import { db } from "@/lib/db";
 import { files } from "@/lib/db/schema";
+import { collectDescendantIds, getUserItems } from "@/lib/files";
 import { auth } from "@clerk/nextjs/server";
-import { and, eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { and, eq, inArray } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ fileId: string }> }) {
-    try {
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Unauthorize"
-                },
-                {
-                    status: 401
-                }
-            )
-        }
+export async function PATCH(_request: Request, { params }: { params: Promise<{ fileId: string }> }) {
+  try {
+    const { userId } = await auth();
 
-        const fileId = (await params).fileId;
-        if (!fileId) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "File Id not provided"
-                },
-                {
-                    status: 500
-                }
-            )
-        }
-
-        const [file] = await db.select().from(files).where(
-            and(
-                eq(files.id, fileId),
-                eq(files.userId, userId)
-            )
-        )
-
-        if (!file) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "File not found in database"
-                },
-                {
-                    status: 401
-                }
-            )
-        }
-
-        const updatedFiles = await db.update(files).set({ isTrash: !files.isTrash }).where(
-            and(
-                eq(files.id, fileId),
-                eq(files.userId, userId)
-            )
-        ).returning();
-
-        console.log("UPDATED FILE :", updatedFiles);
-
-        const updatedFile = updatedFiles[0];
-
-        return NextResponse.json(
-            {
-                message: "File trashed",
-                success: true,
-                updatedFile
-            },
-            {
-                status: 200
-            }
-        )
-    } catch (error) {
-        return NextResponse.json(
-            {
-                message: "Failed to trashed",
-                success: false,
-            },
-            {
-                status: 401
-            }
-        )
+    if (!userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unauthorized",
+        },
+        {
+          status: 401,
+        },
+      );
     }
 
+    const { fileId } = await params;
+    const items = await getUserItems(userId);
+    const target = items.find((item) => item.id === fileId);
+
+    if (!target) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Item not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    const nextTrashState = !target.isTrash;
+    const ids = target.isFolder ? collectDescendantIds(items, fileId) : [fileId];
+    const updatedItems = await db
+      .update(files)
+      .set({
+        isTrash: nextTrashState,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(files.userId, userId), inArray(files.id, ids)))
+      .returning();
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: nextTrashState ? "Item moved to trash." : "Item restored.",
+        items: updatedItems,
+      },
+      {
+        status: 200,
+      },
+    );
+  } catch (error) {
+    console.error("Failed to update trash state", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to update trash state.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
 }

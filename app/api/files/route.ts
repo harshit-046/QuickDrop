@@ -1,71 +1,43 @@
-import { db } from "@/lib/db";
-import { files } from "@/lib/db/schema";
+import { buildDashboardData, normalizeDashboardView } from "@/lib/files";
 import { auth } from "@clerk/nextjs/server";
-import { and, eq, isNull } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 
 export async function GET(request: NextRequest) {
-    try {
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Unauthorize"
-                },
-                {
-                    status: 401
-                }
-            )
-        }
+  try {
+    const { userId } = await auth();
 
-        const searchParams = request.nextUrl.searchParams;
-        const queryUserId = searchParams.get("userId");
-        const parentId = searchParams.get("parentId");
-
-        if (!queryUserId || queryUserId === userId) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Unauthorize"
-                },
-                {
-                    status: 401
-                }
-            )
-        }
-        let userFiles;
-        if (parentId) {
-            //fetching from specific folder
-            userFiles = await db.select().from(files).where(
-                and(
-                    eq(files.userId, userId),
-                    eq(files.parentId, parentId)
-                )
-            )
-        }
-        else {  // from the root folder
-            userFiles = await db.select().from(files).where(
-                and(
-                    eq(files.userId, userId),
-                    isNull(files.parentId)
-                )
-            )
-        }
-
-        return NextResponse.json(userFiles);
-
-    } catch (error) {
-        console.log("Error :", error);
-        return NextResponse.json(
-            {
-                message: "Failed to fetch files",
-                success: false
-            },
-            {
-                status: 401
-            }
-        )
+    if (!userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unauthorized",
+        },
+        {
+          status: 401,
+        },
+      );
     }
+
+    const searchParams = request.nextUrl.searchParams;
+    const view = normalizeDashboardView(searchParams.get("view"));
+    const parentId = searchParams.get("parentId");
+    const search = searchParams.get("search") ?? "";
+
+    const data = await buildDashboardData(userId, view, view === "all" ? parentId : null, search);
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Failed to fetch files", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to fetch files.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
 }

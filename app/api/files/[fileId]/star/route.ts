@@ -2,87 +2,70 @@ import { db } from "@/lib/db";
 import { files } from "@/lib/db/schema";
 import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ fileId: string }> }) {
-    try {
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Unauthorize"
-                },
-                {
-                    status: 401
-                }
-            )
-        }
+export async function PATCH(_request: Request, { params }: { params: Promise<{ fileId: string }> }) {
+  try {
+    const { userId } = await auth();
 
-        const fileId = (await params).fileId;
-        if (!fileId) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "File Id not provided"
-                },
-                {
-                    status: 500
-                }
-            )
-        }
-
-        const [file] = await db.select().from(files).where(
-            and(
-                eq(files.id, fileId),
-                eq(files.userId, userId)
-            )
-        )
-
-        if (!file) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "File not found in database"
-                },
-                {
-                    status: 401
-                }
-            )
-        }
-
-        const updatedFiles = await db.update(files).set({ isStarred: !file.isStarred }).where(
-            and(
-                eq(files.id, fileId),
-                eq(files.userId, userId)
-            )
-        ).returning();
-
-        console.log("UPDATED FILE :", updatedFiles);
-
-        const updatedFile = updatedFiles[0];
-
-        return NextResponse.json(
-            {
-                message: "File starred",
-                success: true,
-                updatedFile
-            },
-            {
-                status: 200
-            }
-        )
-    } catch (error) {
-        return NextResponse.json(
-            {
-                message: "Failed to starred",
-                success: false,
-            },
-            {
-                status: 401
-            }
-        )
+    if (!userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unauthorized",
+        },
+        {
+          status: 401,
+        },
+      );
     }
 
+    const { fileId } = await params;
+    const [file] = await db.select().from(files).where(and(eq(files.id, fileId), eq(files.userId, userId)));
+
+    if (!file) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Item not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    const [updatedFile] = await db
+      .update(files)
+      .set({
+        isStarred: !file.isStarred,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(files.id, fileId), eq(files.userId, userId)))
+      .returning();
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: updatedFile.isStarred ? "Item added to starred." : "Item removed from starred.",
+        item: updatedFile,
+      },
+      {
+        status: 200,
+      },
+    );
+  } catch (error) {
+    console.error("Failed to update starred state", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to update starred state.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
 }
