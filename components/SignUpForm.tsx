@@ -1,323 +1,248 @@
 "use client";
-import { useForm } from "react-hook-form"
-import { signUpSchema } from "@/schema/signUpSchema"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
-import { useSignUp } from "@clerk/nextjs";
-import React, { useState } from "react"
-import { useRouter } from "next/navigation";
-import { Card, CardBody, CardHeader, CardFooter } from "@heroui/card";
-import { Divider } from "@heroui/divider";
-import { Button } from "@heroui/button";
-import { Input } from "@heroui/input";
-import Link from "next/link";
-import {
-    Mail,
-    Lock,
-    AlertCircle,
-    CheckCircle,
-    Eye,
-    EyeOff,
-} from "lucide-react";
+import { useState } from "react";
 
+import { useSignUp } from "@clerk/nextjs";
+import { Button } from "@heroui/button";
+import { Card, CardBody, CardFooter, CardHeader } from "@heroui/card";
+import { Divider } from "@heroui/divider";
+import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import {AlertCircle, Eye, EyeOff, Lock, Mail,} from "lucide-react";
+import { z } from "zod";
+
+import AuthInput from "@/components/AuthInput";
+import { getClerkErrorMessage } from "@/lib/clerk-error";
+import { signUpSchema } from "@/schema/signUpSchema";
 
 const SignUpForm = () => {
-    const router = useRouter();
-    const [verifying, setVerifying] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [authError, setAuthError] = useState<string | null>();
-    const [verificationCode, setVerificationCode] = useState("");
-    const [verificationError, setVerificationError] = useState<string | null>();
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const router = useRouter();
+  const [verifying, setVerifying] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const { signUp, isLoaded, setActive } = useSignUp();
-    const { register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<z.infer<typeof signUpSchema>>({
-        resolver: zodResolver(signUpSchema),
-        defaultValues: {
-            email: "",
-            password: "",
-            username: "",
-            passwordConfirmation: ""
-        }
-    })
+  const { signUp, isLoaded, setActive } = useSignUp();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<z.infer<typeof signUpSchema>>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      passwordConfirmation: "",
+    },
+  });
 
-
-    async function onSubmit(data: z.infer<typeof signUpSchema>) {
-        if (!isLoaded) return;
-        setIsSubmitting(true);
-        setAuthError(null);
-        try {
-            await signUp.create({
-                emailAddress: data.email,
-                password: data.password
-            });
-            await signUp.prepareEmailAddressVerification({
-                strategy: "email_code"
-            });
-            setVerifying(true);
-        } catch (error: any) {
-            console.error(error);
-            setAuthError(error.errors?.[0].message || "Signup failed. Please try again.");
-        }
-        finally {
-            setIsSubmitting(false);
-        }
+  async function onSubmit(data: z.infer<typeof signUpSchema>) {
+    if (!isLoaded) {
+      return;
     }
 
-    const handleVerificationSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault()
-        if (!isLoaded || !signUp) return;
+    setIsSubmitting(true);
+    setAuthError(null);
 
-        setIsSubmitting(true);
-        setAuthError(null);
+    try {
+      await signUp.create({
+        emailAddress: data.email,
+        password: data.password,
+      });
 
-        try {
-            const result = await signUp.attemptEmailAddressVerification({
-                code: verificationCode
-            })
-            console.log("VERIFICATION RESULT :", result);
-            if (result.status === 'complete') {
-                await setActive({ session: result.createdSessionId });
-                router.push("/dashboard");
-            }
-            else {
-                console.log("VERIFICATION INCOMPLETE :", result);
-                setVerificationError("Verification could not completed")
-            }
+      await signUp.prepareEmailAddressVerification({
+        strategy: "email_code",
+      });
 
-        } catch (error: any) {
-            console.log("VERIFICATION ERROR :", error);
-            setVerificationError(error.errors?.[0].message || "An Error occured during verification. please try again later")
-        }
-        finally {
-            setIsSubmitting(false);
-        }
+      setVerifying(true);
+    } catch (error) {
+      setAuthError(getClerkErrorMessage(error, "Sign up failed. Please try again."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
+  async function handleVerificationSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!isLoaded || !signUp) {
+      return;
     }
 
-    if (verifying) {
-        return (
-            <Card className="w-full max-w-md border border-default-200 bg-default-50 shadow-xl">
-                <CardHeader className="flex flex-col gap-1 items-center pb-2">
-                    <h1 className="text-2xl font-bold text-default-900">
-                        Verify Your Email
-                    </h1>
-                    <p className="text-default-500 text-center">
-                        We've sent a verification code to your email
-                    </p>
-                </CardHeader>
+    setIsSubmitting(true);
+    setVerificationError(null);
 
-                <Divider />
+    try {
+      const result = await signUp.attemptEmailAddressVerification({
+        code: verificationCode,
+      });
 
-                <CardBody className="py-6">
-                    {verificationError && (
-                        <div className="bg-danger-50 text-danger-700 p-4 rounded-lg mb-6 flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                            <p>{verificationError}</p>
-                        </div>
-                    )}
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.push("/dashboard");
+        return;
+      }
 
-                    <form onSubmit={handleVerificationSubmit} className="space-y-6">
-                        <div className="space-y-2">
-                            <label
-                                htmlFor="verificationCode"
-                                className="text-sm font-medium text-default-900"
-                            >
-                                Verification Code
-                            </label>
-                            <Input
-                                id="verificationCode"
-                                type="text"
-                                placeholder="Enter the 6-digit code"
-                                value={verificationCode}
-                                onChange={(e) => setVerificationCode(e.target.value)}
-                                className="w-full"
-                                autoFocus
-                            />
-                        </div>
-
-                        <Button
-                            type="submit"
-                            color="primary"
-                            className="w-full"
-                            isLoading={isSubmitting}
-                        >
-                            {isSubmitting ? "Verifying..." : "Verify Email"}
-                        </Button>
-                    </form>
-
-                    <div className="mt-6 text-center">
-                        <p className="text-sm text-default-500">
-                            Didn't receive a code?{" "}
-                            <button
-                                onClick={async () => {
-                                    if (signUp) {
-                                        await signUp.prepareEmailAddressVerification({
-                                            strategy: "email_code",
-                                        });
-                                    }
-                                }}
-                                className="text-primary hover:underline font-medium"
-                            >
-                                Resend code
-                            </button>
-                        </p>
-                    </div>
-                </CardBody>
-            </Card>
-        );
+      setVerificationError("Verification is still incomplete. Please double-check the code and try again.");
+    } catch (error) {
+      setVerificationError(getClerkErrorMessage(error, "Verification failed. Please try again."));
+    } finally {
+      setIsSubmitting(false);
     }
+  }
 
-
+  if (verifying) {
     return (
-        <Card className="w-full max-w-md border border-default-200 bg-default-50 shadow-xl">
-            <CardHeader className="flex flex-col gap-1 items-center pb-2">
-                <h1 className="text-2xl font-bold text-default-900">
-                    Create Your Account
-                </h1>
-                <p className="text-default-500 text-center">
-                    Sign up to start managing your images securely
-                </p>
-            </CardHeader>
+      <Card className="glass-panel w-full max-w-md rounded-[2rem] border-none shadow-none">
+        <CardHeader className="flex flex-col items-start gap-2 px-8 pb-4 pt-8">
+          <p className="section-title">Almost there</p>
+          <h1 className="text-3xl font-semibold">Verify your email</h1>
+          <p className="text-sm leading-6 text-muted">Enter the code Clerk sent to your inbox to unlock the dashboard.</p>
+        </CardHeader>
 
-            <Divider />
+        <Divider />
 
-            <CardBody className="py-6">
-                {authError && (
-                    <div className="bg-danger-50 text-danger-700 p-4 rounded-lg mb-6 flex items-center gap-2">
-                        <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                        <p>{authError}</p>
-                    </div>
-                )}
+        <CardBody className="space-y-6 px-8 py-7">
+          {verificationError ? (
+            <div className="flex items-start gap-3 rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+              <p>{verificationError}</p>
+            </div>
+          ) : null}
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="email"
-                            className="text-sm font-medium text-default-900"
-                        >
-                            Email
-                        </label>
-                        <Input
-                            id="email"
-                            type="email"
-                            placeholder="your.email@example.com"
-                            startContent={<Mail className="h-4 w-4 text-default-500" />}
-                            isInvalid={!!errors.email}
-                            errorMessage={errors.email?.message}
-                            {...register("email")}
-                            className="w-full"
-                        />
-                    </div>
+          <form onSubmit={handleVerificationSubmit} className="space-y-5">
+            <AuthInput
+              id="verificationCode"
+              type="text"
+              label="Verification code"
+              placeholder="Enter the code from your email"
+              value={verificationCode}
+              onChange={(event) => setVerificationCode(event.target.value)}
+              autoFocus
+            />
 
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="password"
-                            className="text-sm font-medium text-default-900"
-                        >
-                            Password
-                        </label>
-                        <Input
-                            id="password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="••••••••"
-                            startContent={<Lock className="h-4 w-4 text-default-500" />}
-                            endContent={
-                                <Button
-                                    isIconOnly
-                                    variant="light"
-                                    size="sm"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    type="button"
-                                >
-                                    {showPassword ? (
-                                        <EyeOff className="h-4 w-4 text-default-500" />
-                                    ) : (
-                                        <Eye className="h-4 w-4 text-default-500" />
-                                    )}
-                                </Button>
-                            }
-                            isInvalid={!!errors.password}
-                            errorMessage={errors.password?.message}
-                            {...register("password")}
-                            className="w-full"
-                        />
-                    </div>
+            <Button
+              type="submit"
+              className="h-12 w-full rounded-full bg-[var(--foreground)] text-sm font-medium text-white"
+              isLoading={isSubmitting}
+            >
+              {isSubmitting ? "Verifying" : "Verify email"}
+            </Button>
+          </form>
 
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="passwordConfirmation"
-                            className="text-sm font-medium text-default-900"
-                        >
-                            Confirm Password
-                        </label>
-                        <Input
-                            id="passwordConfirmation"
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder="••••••••"
-                            startContent={<Lock className="h-4 w-4 text-default-500" />}
-                            endContent={
-                                <Button
-                                    isIconOnly
-                                    variant="light"
-                                    size="sm"
-                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    type="button"
-                                >
-                                    {showConfirmPassword ? (
-                                        <EyeOff className="h-4 w-4 text-default-500" />
-                                    ) : (
-                                        <Eye className="h-4 w-4 text-default-500" />
-                                    )}
-                                </Button>
-                            }
-                            isInvalid={!!errors.passwordConfirmation}
-                            errorMessage={errors.passwordConfirmation?.message}
-                            {...register("passwordConfirmation")}
-                            className="w-full"
-                        />
-                    </div>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[var(--accent)] transition hover:opacity-80"
+            onClick={async () => {
+              if (!signUp) {
+                return;
+              }
 
-                    <div className="space-y-4">
-                        <div className="flex items-start gap-2">
-                            <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
-                            <p className="text-sm text-default-600">
-                                By signing up, you agree to our Terms of Service and Privacy
-                                Policy
-                            </p>
-                        </div>
-                    </div>
-
-                    <Button
-                        type="submit"
-                        color="primary"
-                        className="w-full"
-                        isLoading={isSubmitting}
-                    >
-                        {isSubmitting ? "Creating account..." : "Create Account"}
-                    </Button>
-                </form>
-            </CardBody>
-
-            <Divider />
-
-            <CardFooter className="flex justify-center py-4">
-                <p className="text-sm text-default-600">
-                    Already have an account?{" "}
-                    <Link
-                        href="/sign-in"
-                        className="text-primary hover:underline font-medium"
-                    >
-                        Sign in
-                    </Link>
-                </p>
-            </CardFooter>
-        </Card>
+              await signUp.prepareEmailAddressVerification({
+                strategy: "email_code",
+              });
+            }}
+          >
+            Resend code
+          </button>
+        </CardBody>
+      </Card>
     );
-}
+  }
+
+  return (
+    <Card className="glass-panel w-full max-w-md rounded-[2rem] border-none shadow-none">
+      <CardHeader className="flex flex-col items-start gap-2 px-8 pb-4 pt-8">
+        <p className="section-title">Create account</p>
+        <h1 className="text-3xl font-semibold">Start your QuickDrop workspace</h1>
+        <p className="text-sm leading-6 text-muted">Sign up with email and password, then verify your inbox to continue.</p>
+      </CardHeader>
+
+      <Divider />
+
+      <CardBody className="space-y-6 px-8 py-7">
+        {authError ? (
+          <div className="flex items-start gap-3 rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+            <p>{authError}</p>
+          </div>
+        ) : null}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <AuthInput
+            id="email"
+            type="email"
+            label="Email"
+            placeholder="you@example.com"
+            startContent={<Mail className="h-4 w-4" />}
+            errorMessage={errors.email?.message}
+            {...register("email")}
+          />
+
+          <AuthInput
+            id="password"
+            type={showPassword ? "text" : "password"}
+            label="Password"
+            placeholder="Choose a strong password"
+            startContent={<Lock className="h-4 w-4" />}
+            endContent={
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-default-500 transition hover:bg-white/70 hover:text-default-800"
+                onClick={() => setShowPassword((value) => !value)}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            }
+            errorMessage={errors.password?.message}
+            {...register("password")}
+          />
+
+          <AuthInput
+            id="passwordConfirmation"
+            type={showConfirmPassword ? "text" : "password"}
+            label="Confirm password"
+            placeholder="Repeat your password"
+            startContent={<Lock className="h-4 w-4" />}
+            endContent={
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-default-500 transition hover:bg-white/70 hover:text-default-800"
+                onClick={() => setShowConfirmPassword((value) => !value)}
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            }
+            errorMessage={errors.passwordConfirmation?.message}
+            {...register("passwordConfirmation")}
+          />
+
+          <Button
+            type="submit"
+            className="h-12 w-full rounded-full bg-[var(--accent)] text-sm font-medium text-white"
+            isLoading={isSubmitting}
+          >
+            {isSubmitting ? "Creating account" : "Create account"}
+          </Button>
+        </form>
+      </CardBody>
+
+      <Divider />
+
+      <CardFooter className="justify-center px-8 py-5 text-sm text-muted">
+        <p>
+          Already have an account?{" "}
+          <Link href="/sign-in" className="font-semibold text-[var(--accent)] transition hover:opacity-80">
+            Sign in
+          </Link>
+        </p>
+      </CardFooter>
+    </Card>
+  );
+};
 
 export default SignUpForm
