@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4efe6;
+  --foreground: #171d2b;
+  --panel: rgba(255, 250, 240, 0.84);
+  --panel-strong: #fffaf0;
+  --border: rgba(23, 29, 43, 0.12);
+  --muted: #667085;
+  --accent: #d97706;
+  --accent-soft: rgba(217, 119, 6, 0.14);
+  --ink-soft: #263248;
 }
 
 @theme inline {
@@ -12,15 +19,103 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at top left, rgba(217, 119, 6, 0.18), transparent 28%),
+    radial-gradient(circle at 85% 15%, rgba(38, 50, 72, 0.14), transparent 24%),
+    linear-gradient(180deg, #fcf7ef 0%, #f4efe6 45%, #ebe2d2 100%);
+}
+
+a {
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+.page-shell {
+  position: relative;
+  min-height: 100vh;
+}
+
+.page-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(23, 29, 43, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 29, 43, 0.035) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.4), transparent 92%);
+}
+
+.glass-panel {
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 50px rgba(23, 29, 43, 0.08);
+}
+
+.soft-panel {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 40px rgba(23, 29, 43, 0.06);
+}
+
+.accent-ring {
+  box-shadow:
+    0 0 0 1px rgba(217, 119, 6, 0.08),
+    0 14px 32px rgba(217, 119, 6, 0.16);
+}
+
+.section-title {
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.text-ink-soft {
+  color: var(--ink-soft);
+}
+
+.gradient-text {
+  background: linear-gradient(120deg, #263248 0%, #d97706 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.animate-rise {
+  animation: rise 0.45s ease-out both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
