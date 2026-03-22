@@ -1,94 +1,63 @@
-📦 QuickDrop - an application with Next.js, Clerk, Drizzle, and ImageKit
+# QuickDrop
 
-A full-stack Dropbox-like file management system built with the modern web stack: **Next.js App Router**, **Clerk for auth**, **Zod for validation**, **Drizzle ORM** with **Neon Postgres**, and **ImageKit** for file storage.
+QuickDrop is a full-stack file workspace built with Next.js App Router, Clerk, Drizzle, Neon Postgres, and ImageKit.
 
----
+## Features
 
-## 🔥 Features
+- Email/password sign up and sign in with Clerk verification
+- Protected dashboard with nested folders and breadcrumb navigation
+- Cloud file uploads backed by ImageKit
+- Starred items and trash/restore flows
+- Permanent delete with best-effort ImageKit cleanup
+- Drizzle schema and migration support for Neon Postgres
 
-- 📝 **User Auth** – Signup, Signin with OTP using Clerk
-- ✅ **Form Validation** – Zod + React Hook Form integration
-- 📂 **Folder & File Management** – Create folders, upload files, nested structures
-- ⭐ **Mark as Starred / Deleted** – Manage file states in the database
-- ☁️ **ImageKit Integration** – Upload any type of file to the cloud
-- 🔐 **API Middleware** – Protect routes and APIs with Clerk middleware
-- 🧾 **Postgres with Drizzle ORM** – Clean schema and relational data handling
-- 🎨 **HeroUI Components** – Elegant and reusable UI design
+## Stack
 
----
+- Next.js 15
+- React 19
+- Clerk
+- Drizzle ORM
+- Neon Postgres
+- ImageKit
+- Tailwind CSS 4
+- HeroUI
 
-## 🛠️ Tech Stack
+## Environment
 
-| Tech            | Description                            |
-|-----------------|----------------------------------------|
-| Next.js 14+     | React Framework with App Router        |
-| Clerk           | Auth with OTP, session management      |
-| Zod             | Schema validation for forms            |
-| React Hook Form | Powerful form handling                 |
-| Drizzle ORM     | Type-safe SQL ORM for Postgres         |
-| Neon            | Serverless Postgres DB                 |
-| ImageKit        | File and image storage solution        |
-| HeroUI          | Accessible Tailwind UI components      |
+Copy `.env.example` to `.env` and provide:
 
----
+- `DATABASE_URL`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY`
+- `IMAGEKIT_PRIVATE_KEY`
+- `NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT`
 
-## 📁 Folder Structure
-
-```
-/app
-  /dashboard
-  /api
-  /auth
-  layout.tsx
-/db
-  schema.ts
-  drizzle.config.ts
-/lib
-  utils.ts
-  auth.ts
-```
-
----
-
-## 🚀 Getting Started
+## Local setup
 
 ```bash
-git clone https://github.com/yourusername/QuickDrop.git
-cd QuickDrop
-
-# Install dependencies
 npm install
-
-# Copy and set environment variables
-cp .env.example .env.local
-# Add your Clerk, ImageKit, and Neon DB credentials
-
-# Push DB schema
-npx drizzle-kit push
-
-# Run the app
+npm run db:migrate
 npm run dev
 ```
 
----
+If this is a fresh database and you want Drizzle to generate future migrations from schema changes:
 
+```bash
+npm run db:generate
+```
 
-## 🧠 What You’ll Learn
+## Useful scripts
 
-- Real-world **file upload** and **folder structure** modeling
-- Full-stack **authentication flows** with OTP
-- Deep **form validation** and error handling
-- Advanced **API route protection**
-- How SaaS apps like Dropbox handle file data and cloud storage
-- Clean, scalable project architecture
+- `npm run dev`
+- `npm run lint`
+- `npm run build`
+- `npm run db:generate`
+- `npm run db:migrate`
+- `npm run db:push`
+- `npm run db:studio`
 
+## Notes
 
-## 🙌 Credits
-
-This project is inspired by modern file management SaaS like **Dropbox**, and built as a learning project using the best tools of the JavaScript ecosystem.
-
----
-
-## 📄 License
-
-MIT
+- The latest migration adds `storage_id` to the `files` table so uploaded files can be deleted from ImageKit later.
+- Existing records without `storage_id` will still work in the UI, but permanent delete can only clean up remote assets when that value exists.
